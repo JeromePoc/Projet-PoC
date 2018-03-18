@@ -1,0 +1,124 @@
+#include <Servo.h> //servo library
+#include <DHT.h> //DHT captors library
+#include <Adafruit_Sensor.h>
+#define DHTPIN 7
+#define DHTTYPE DHT22 //DHT 22 (AM2302)
+
+//Déclaration of all variables
+
+//1)motion device captors
+//the time we give the sensor to calibrate (10-60 secs according to the datasheet)
+int calibrationTime = 30;
+int ledPin = 13;// choose the pin for the LED
+int inputPin = 10;// choose the input pin (for PIR sensor)
+int pirState = LOW;// we start, assuming no motion detected
+int val = 0;// variable for reading the pin status
+
+//2)servo motors
+Servo monServo; //creating a new servomotor
+int pos = 0;
+
+//3)photoCell captors
+int photocellPin = 8;
+int photocellReading;
+
+//4)temp and humidity captor
+DHT dht(DHTPIN, DHTTYPE); 
+
+//end of declaration
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(ledPin, OUTPUT);// declare LED as output
+  pinMode(inputPin, INPUT);// declare sensor as input
+
+  Serial.print("calibrating sensor ");
+  for(int i = 0; i < calibrationTime; i++){
+    Serial.print(".");
+    delay(250);
+  }
+
+  monServo.attach(6);//declare the servo input on pin 6
+   
+  Serial.println("DHTxx test!");
+  dht.begin();
+}
+
+void loop() {
+  photocellReading = analogRead(photocellPin);
+  //2s delay between each measure, it takes 250ms to read
+  delay(2000);
+  //reading humidity rate
+  float h = dht.readHumidity();
+  //reading temp in Celsius
+  float t = dht.readTemperature();
+  //reading temp in Fahrenheit
+  float f = dht.readTemperature(true);
+
+  //If no measures, programm stop and display error message
+  if (isnan(h) || isnan(t) || isnan(f)) {
+    Serial.println("Echec de lecture !");
+    return;
+  }
+  Serial.print("Analog reading = ");
+  Serial.print(photocellReading);
+  //calcul of the temperature
+  float hi = dht.computeHeatIndex(f, h);
+  Serial.print("Humidite: "); 
+  Serial.print(h);
+  Serial.print(" %\t");
+  Serial.print("Temperature ressentie: ");
+  Serial.print(dht.convertFtoC(hi));
+  Serial.println(" *C");
+
+  if (photocellReading < 200 && h > 50 && dht.convertFtoC(hi) > 25) {
+    Serial.println("Low Luminosity, high temperature and humidity");
+    //shutter is closing    
+    for (int position = 0; position <= 180; position++) {
+      monServo.write(position);
+      delay(50);
+    }
+    for (int position = 180; position >= 1; position--) {
+        monServo.write(position);
+        delay(50);
+     }
+    //We then detect if there is a movement
+    val = digitalRead(inputPin);  // read input value
+    Serial.println(val);
+    if (val == HIGH) { // check if the input is HIGH
+      if (pirState == LOW) {
+        // we have just turned on
+        Serial.println("Motion detected!");
+        // We only want to print on the output change, not state
+        pirState = HIGH;
+        digitalWrite(ledPin, HIGH);//turn on the light in the room
+        delay(150);
+      }
+     }else {
+      if (pirState == HIGH){
+        // we have just turned of
+        Serial.println("Motion ended!");
+        // We only want to print on the output change, not state
+        pirState = LOW;
+      }
+     }
+  }
+
+  if (photocellReading > 200 && h < 50 && dht.convertFtoC(hi) < 20) {
+    if (pos = 0){
+      //shutter is opening
+      for (int position = 180; position >= 1; position--) {
+        monServo.write(position);
+        delay(50);
+      }
+      for (int position = 0; position <= 180; position++) {
+        monServo.write(position);
+        delay(50);
+      }
+    }
+    else {
+      //we do nothing      
+    }
+  }
+  delay(5000);
+ }

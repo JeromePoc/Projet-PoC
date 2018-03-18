@@ -1,0 +1,85 @@
+#include <Servo.h> //servo library
+#include <DHT.h> //DHT captors library
+#include <Adafruit_Sensor.h>
+#define DHTPIN 7
+#define DHTTYPE DHT22 //DHT 22 (AM2302)
+
+//Déclaration of all variables
+
+//1)motion device captors
+//the time we give the sensor to calibrate (10-60 secs according to the datasheet)
+int calibrationTime = 30;
+int ledPin = 13;// choose the pin for the LED
+int inputPin = 10;// choose the input pin (for PIR sensor)
+int pirState = LOW;// we start, assuming no motion detected
+int val = 0;// variable for reading the pin status
+
+//2)servo motors
+Servo monServo; //creating a new servomotor
+int position = 0;
+bool etat_volet = true;
+
+//3)photoCell captors
+int photocellPin = 8;
+int photocellReading;
+
+//4)temp and humidity captor
+DHT dht(DHTPIN, DHTTYPE); 
+
+//end of declaration
+
+void shutter()// function to close and open shutter
+{
+  for(position = 0; position < 180; position++)
+  {                                  
+    monServo.write(position);             
+    delay(15);                      
+  } 
+  for(position = 180; position>=1; position--)     
+  {                                
+    monServo.write(position);              
+    delay(15);
+  }
+}
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(ledPin, OUTPUT);// declare LED as output
+  pinMode(inputPin, INPUT);// declare sensor as input
+
+  Serial.print("calibrating sensor ");
+  for(int i = 0; i < calibrationTime; i++){
+    Serial.print(".");
+    delay(250);
+  }
+
+  monServo.attach(6);//declare the servo input on pin 6
+     
+  Serial.println("DHTxx test!");
+  dht.begin();
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+
+}
+
+/*
+If (brightness == low or rain == present) and (shutter_state == open){
+
+  Close shutters
+  Shutter_state = closed
+}
+
+If (brightness == high and rain == not present and shutter_state == closed) {
+  Open shutters
+  Switch light off
+  Shutter_state = open
+}
+
+If (shutter_state == closed){
+  If (person in the room){
+    Then switch light on
+    Else switch light off
+  }
+}*/
